@@ -1,9 +1,24 @@
-<html>
- <head>
- </head>
- <body>
-  <script src="https://www.puck-js.com/puck.js"></script>
-  <button onclick="Puck.write('LED1.set();\n');">LED On!</button>
-  <button onclick="Puck.write('LED1.reset();\n');">LED Off!</button>
- </body>
-</html>
+var counter = 0;
+
+// Update BLE advertising
+function update() {
+  var a = new ArrayBuffer(4);
+  var d = new DataView(a);
+  d.setUint32(0, counter, false/*big endian*/);
+  NRF.setAdvertising({},{
+    name: "Puck.js \xE2\x9A\xA1",
+    manufacturer:0x0590,
+    manufacturerData:a,
+    interval: 600 // default is 375 - save a bit of power
+  });
+}
+
+// Set up pin states
+D1.write(0);
+pinMode(D2,"input_pullup");
+// Watch for pin changes
+setWatch(function(e) {
+ counter++;
+ update();
+ digitalPulse(LED1,1,1); // show activity
+}, D2, { repeat:true, edge:"falling" });
