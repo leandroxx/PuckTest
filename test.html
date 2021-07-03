@@ -1,10 +1,62 @@
-var counter = 0;
+/** Create a new counter. Contains the following:
+{
+  totals : {
+    count // Overall count
+    year  // each month of the year (0..11)
+    week  // each day of the week (0..6)
+    month // each day of the month (0..31)
+    day : // each hour (0..23)
+  },
+  history // last 96 hours, newest last (0..95)
+}
+*/
+function Counter() {
+  this.clear();
+};
+/// Clear the counters back to zero
+Counter.prototype.clear = function() {
+  this.totals = {
+    count : 0,                // Overall count
+    year : new Uint32Array(12), // each month of the year (0..11)
+    week : new Uint32Array(7), // each day of the week (0..6)
+    month : new Uint32Array(31), // each day of the month (0..31)
+    day : new Uint32Array(24) // each hour (0..23)
+  };
+  this.historyPeriod = 60*60*1000; // 1 hour in milliseconds
+  this.history = new Uint32Array(96); // last 96 hours
+  this.historyTime = 0;
+  this.lastUpdate = new Date.now();
+};
+///
+Counter.prototype.inc = function(n) {
+  if (n===undefined) n=1;
+  var d = new Date();
+  var t = this.totals;
+  // Totals by time period
+  t.count+=n;  
+  t.year[d.getMonth()]+=n;
+  t.week[d.getDay()]+=n;
+  t.month[d.getDate()-1]+=n;
+  t.day[d.getHours()]+=n;
+  // Rolling history
+  this.historyTime += d.getTime()-this.lastUpdate;
+  this.lastUpdate = d.getTime();
+  var steps = Math.floor(this.historyTime / this.historyPeriod);
+  if (steps>=0) {
+    this.historyTime -= steps*this.historyPeriod;
+    var h = this.history;
+    h.set(new Uint32Array(h.buffer, 4*steps), 0);
+    h.fill(0, h.length-steps);
+    h[h.length-1]+=n;
+  }
+};
+var c = new Counter();
 
 // Update BLE advertising
 function update() {
   var a = new ArrayBuffer(4);
   var d = new DataView(a);
-  d.setUint32(0, counter, false/*big endian*/);
+  d.setUint32(0, c.totals.count, false/*big endian*/);
   NRF.setAdvertising({},{
     name: "Puck.js \xE2\x9A\xA1",
     manufacturer:0x0590,
@@ -13,12 +65,14 @@ function update() {
   });
 }
 
-// Set up pin states
-D1.write(0);
-pinMode(D2,"input_pullup");
-// Watch for pin changes
-setWatch(function(e) {
- counter++;
- update();
- digitalPulse(LED1,1,1); // show activity
-}, D2, { repeat:true, edge:"falling" });
+function onInit() {
+  clearWatch();
+  D1.write(0);
+  pinMode(D2,"input_pullup");
+  setWatch(function(e) {
+    c.inc(1);
+    update();
+    digitalPulse(LED1,1,1); // show activity
+  }, D2, { repeat:true, edge:"falling" });
+  update();
+}
