@@ -1,7 +1,9 @@
-var presses = 0;
-NRF.setAdvertising({},{manufacturer: 0x0590, manufacturerData:[presses]});
-
-setWatch(function() {                                                          
-  presses++;                                                                   
-  NRF.setAdvertising({},{manufacturer: 0x0590, manufacturerData:[presses]});   
-}, BTN, {edge:"rising", repeat:1, debounce:20})
+<html>
+ <head>
+ </head>
+ <body>
+  <script src="https://www.puck-js.com/puck.js"></script>
+  <button onclick="Puck.write('LED1.set();\n');">LED On!</button>
+  <button onclick="Puck.write('LED1.reset();\n');">LED Off!</button>
+ </body>
+</html>
